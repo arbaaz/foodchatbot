@@ -1,47 +1,35 @@
-const xmpp = require('node-xmpp-client');
-var command_interpreter = require('./command_interpreter.js');
 var order_action = require('./order_states.js').order_action;
 var redis = require('redis');
 var redisClient = redis.createClient();
+var Client = require('hangupsjs');
 
-function command_executor(stanza){
-  var request = command_interpreter(stanza);
-  if (request){
-    debugger;
-    request.conn = this;
-    execute_command(request);
-    //send_message(request, stanza.getChildText('body'));
+function command_executor(request, client) {
+  var received = {};
+  received.message = request.chat_message.message_content.segment[0].text;
+  received.conversation_id = request.conversation_id.id;
+  received.client = client;
+  if (received.message === 'help' ||
+      received.message === '?'    ||
+      received.message === 'man'){
+    send_help_information(received);
   }
-}
-
-/*
-  This block stores all the commands and their mapping functions
- */
-
-function execute_command(request) {
-  var message = "";
-  if (request.command[0] === 'help' ||
-      request.command[0] === '?'    ||
-      request.command[0] === 'man'){
-    send_help_information(request);
+  else if(received.message === 'hey'){
+    startGreeting(received);
   }
-  else if(request.command[0] === 'hey'){
-    startGreeting(request);
+  else if (received.message === 'logout'){
+    redisClient.del(received.conversation_id);
+    logout(received);
   }
-  else if (request.command[0] === 'logout'){
-    redisClient.del(request.stanza.attrs.from);
-    logout(request);
-  }
-  else if(request.command[0] === 'restart'){
-    redisClient.hset(request.stanza.attrs.from, 'state', 'SELECT_LOCALITY');
-    startGreeting(request);
+  else if(received.message === 'restart'){
+    redisClient.hset(received.conversation_id, 'state', 'SELECT_LOCALITY');
+    startGreeting(received);
   }
   else{
-    order_action(request);
+    order_action(received);
   }
 }
 
-function send_help_information(request) {
+function send_help_information(received) {
   var message = "";
   message = "This is a chat tool to help you to order food with ease.\n\n";
   message += "Following are the allowed commands -\n\n";
@@ -49,30 +37,35 @@ function send_help_information(request) {
   message += "restart : to start again at any point\n\n";
   message += "add_address : to add address after choosing items\n\n";
   message += "logout : to log out from account\n";
-  send_message(request, message);
+  send_message(received, message);
 }
 
-function startGreeting(request){
+function startGreeting(received){
   message = "Hey, where do you want your food?\n";
   redisClient.get('active_localities', function(err, data){
     data = JSON.parse(data);
     for(var i=0; i<data.length; i++){
       message += (i + '. ' + data[i].name + '\n');
     }
-    send_message(request, message);
+    send_message(received, message);
   });
 }
 
-function logout(request){
+function logout(received){
   message = "You have successfully logged out.\n\nThank you for using our service. We would love to serve you again."
-  send_message(request, message);
+  send_message(received, message);
 }
 
-function send_message(request, message_body) {
-    var elem = new xmpp.Element('message', { to: request.stanza.attrs.from, type: 'chat' })
-                 .c('body').t(message_body);
-    request.conn.send(elem);
-    console.log('[message] SENT: ' + elem.up().toString());
+function send_message(received, message_body, image_id) {
+  bld = new Client.MessageBuilder();
+  var split_message_body = message_body.split('\n');
+  bld = bld.text(split_message_body[0]);
+  for (var i = 1; i < split_message_body.length; i++){
+    bld = bld.linebreak().text(split_message_body[i]);
+  }
+  segments = bld.toSegments();
+  received.client.sendchatmessage(received.conversation_id, segments);
+  console.log('[message] SENT: ' + message_body);
 }
 
 module.exports = command_executor;

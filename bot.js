@@ -39,7 +39,6 @@ function request_google_roster() {
 }
 
 function accept_subscription_requests(stanza) {
-    debugger;
     if(stanza.is('presence') && stanza.attrs.type === 'subscribe') {
         var subscribe_elem = new xmpp.Element('presence', {
             to: stanza.attrs.from,
@@ -50,7 +49,25 @@ function accept_subscription_requests(stanza) {
     }
 }
 
+// ------------------
+// Integrating hangupjs
+
+var Client = require('hangupsjs');
+var Q = require('q');
+
+var creds = function() { return { auth: Client.authStdin }; };
+
+var client = new Client();
+// set more verbose logging
+// client.loglevel('debug');
+
 // Command Interpretation and Execution
 
 var command_executor = require('./command_executor.js');
-conn.on('stanza', command_executor);
+client.on('chat_message', function(ev){
+  if (ev.sender_id.gaia_id !== ev.self_event_state.user_id.gaia_id){
+    command_executor(ev, client);
+  }
+});
+
+client.connect(creds).then(function() {}).done();
