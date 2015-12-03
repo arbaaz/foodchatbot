@@ -35,7 +35,7 @@ function send_help_information(received) {
   message += "Following are the allowed commands -\n\n";
   message += "hey tinyOwl : to start and then follow the instructions\n\n";
   message += "restart : to start again at any point\n\n";
-  message += "add_address : to add address after choosing items\n\n";
+  // message += "add_address : to add address after choosing items\n\n";
   message += "logout : to log out from account\n";
   send_message(received, message);
 }
