@@ -1,4 +1,4 @@
-var order_action = require('./order_states.js').order_action;
+var order_states = require('./order_states.js');
 var redis = require('redis');
 var redisClient = redis.createClient();
 var Client = require('hangupsjs');
@@ -25,7 +25,7 @@ function command_executor(request, client) {
     startGreeting(received);
   }
   else{
-    order_action(received);
+    order_states.order_action(received);
   }
 }
 
@@ -35,9 +35,8 @@ function send_help_information(received) {
   message += "Following are the allowed commands -\n\n";
   message += "hey tinyOwl : to start and then follow the instructions\n\n";
   message += "restart : to start again at any point\n\n";
-  // message += "add_address : to add address after choosing items\n\n";
   message += "logout : to log out from account\n";
-  send_message(received, message);
+  order_states.send_message(received, message);
 }
 
 function startGreeting(received){
@@ -47,25 +46,13 @@ function startGreeting(received){
     for(var i=0; i<data.length; i++){
       message += (i + '. ' + data[i].name + '\n');
     }
-    send_message(received, message);
+    order_states.send_message(received, message);
   });
 }
 
 function logout(received){
   message = "You have successfully logged out.\n\nThank you for using our service. We would love to serve you again."
-  send_message(received, message);
-}
-
-function send_message(received, message_body, image_id) {
-  bld = new Client.MessageBuilder();
-  var split_message_body = message_body.split('\n');
-  bld = bld.text(split_message_body[0]);
-  for (var i = 1; i < split_message_body.length; i++){
-    bld = bld.linebreak().text(split_message_body[i]);
-  }
-  segments = bld.toSegments();
-  received.client.sendchatmessage(received.conversation_id, segments);
-  console.log('[message] SENT: ' + message_body);
+  order_states.send_message(received, message);
 }
 
 module.exports = command_executor;

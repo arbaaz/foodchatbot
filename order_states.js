@@ -205,3 +205,4 @@ function send_message(received, message_body, image_id) {
 }
 
 exports.order_action = order_action;
+exports.send_message = send_message;
