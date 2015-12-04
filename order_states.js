@@ -159,7 +159,7 @@ function chooseAddress(received, data) {
     .then(function(parsedBody){
       redisClient.hset(received.conversation_id, 'temp_order_id', parsedBody.payload.order_id);
       redisClient.hset(received.conversation_id, 'total', parsedBody.payload.payable_amount);
-      message = "Your total is Rs " + parsedBody.payload.payable_amount +". Type \"1\" to place your order";
+      message = "Your total is Rs " + parsedBody.payload.payable_amount +". Type '1' to place your order";
       send_message(received, message);
     })
     .catch(function (err) {
@@ -172,20 +172,20 @@ function confirmOrder(received, data){
   if (received.message === '1'){
     tinyowlRequest.place_order(data.temp_order_id, data.session_token, data.total)
     .then(function(parsedBody){
-      message = "Thank you for placing order with TinyOwl";
-      message += "Your order Id is " + parsedBody.payload.order_id;
       redisClient.hset(received.conversation_id, 'state', 'SELECT_LOCALITY');
-      redisClient.hset(received.conversation_id, 'order', parsedBody.payload.order_id);
+      redisClient.hset(received.conversation_id, 'order', parsedBody.order_id);
+      message = "Thank you for placing order with TinyOwl.";
+      message += " Your order Id is " + parsedBody.order_id;
+      send_message(received, message);
     })
     .catch(function (err) {
-      console.log(err);
       send_message(received, err.error.message);
     })
   }
   else {
     message = send_unknown_command_message();
+    send_message(received, message);
   }
-  send_message(received, message);
 }
 
 function send_unknown_command_message() {

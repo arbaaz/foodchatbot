@@ -154,3 +154,38 @@ exports.login_with_number = login_with_number;
 exports.verify_with_otp = verify_with_otp;
 exports.generate_invoice = generate_invoice;
 exports.place_order = place_order;
+
+// place_id = "ChIJFTW8ywvI5zsRABlRv1yrPs4";
+// session_token = "2218l9kVNl9ayu2F4vjQfUCgeEziNtwpaRDq4HsSusbyRgxOIGuJiJCizTdHNDIculIhtgdKvsdDkS92jBRWDlZi5gDD";
+// address_id = "112539";
+// dish ={ id: '558dd8e0fa125913650015ba',
+//   name: 'Veg Punjabi Thali',
+//   veg_type: 'VEG',
+//   restaurant_id: '544e2586091d49bb5b0009b4',
+//   price: 210,
+//   restaurant_name: '3PL ROAD RUNNR EAT EXPRESS' }
+// quantity = 2
+
+// generate_invoice(place_id, session_token, address_id, dish, quantity)
+//   .then(function(parsedBody){
+//     console.log(parsedBody);
+//   })
+//   .error(function(err){
+//     console.log(err);
+//   })
+//
+//
+
+// session_token = "2218l9kVNl9ayu2F4vjQfUCgeEziNtwpaRDq4HsSusbyRgxOIGuJiJCizTdHNDIculIhtgdKvsdDkS92jBRWDlZi5gDD";
+// order_id = "565f1a33123fea4ff60000fa";
+// total = "270";
+
+// place_order(order_id, session_token, total)
+//   .then(function(parsedBody){
+//     console.log(parsedBody);
+//   })
+//   .error(function(err){
+//     console.log(err);
+//   })
+
+
