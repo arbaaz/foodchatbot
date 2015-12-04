@@ -2,6 +2,7 @@ var redis = require('redis');
 var redisClient = redis.createClient();
 var Client = require('hangupsjs');
 var tinyowlRequest = require('./tinyowl_request.js');
+var setImage = require('./image_uploader.js').setImage;
 
 function order_action(received){
   redisClient.hgetall(received.conversation_id, function(err, data){
@@ -63,7 +64,15 @@ function selectLocality(received, data){
           for(var i = 0; i < dishes.length; i++){
             message += (i + ". " + dishes[i].name + "(" + dishes[i].veg_type + ") " + "from " + dishes[i].restaurant_name + " at Rs." + dishes[i].price + "\n\n");
           }
-          send_message(received, message);
+          redisClient.hget('foodbotimage', dishes[i].id, function(err, image_id){
+            if (image_id !== null){
+              send_message(received, message, image_id);
+            }
+            else{
+              setImage(dishes[i].id, dishes[i].image_url);
+              send_message(received, message);
+            }
+          })
         }
         else{
           var message = "No active dishes in this locality";
