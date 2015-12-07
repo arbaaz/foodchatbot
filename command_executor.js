@@ -1,11 +1,10 @@
 var order_states = require('./order_states.js');
 var redis = require('redis');
 var redisClient = redis.createClient();
-var Client = require('hangupsjs');
 
 function command_executor(request, client) {
   var received = {};
-  received.message = request.chat_message.message_content.segment[0].text;
+  received.message = request.chat_message.message_content.segment[0].text.toLowerCase();;
   received.conversation_id = request.conversation_id.id;
   received.client = client;
   if (received.message === 'help' ||
@@ -33,7 +32,7 @@ function send_help_information(received) {
   var message = "";
   message = "This is a chat tool to help you to order food with ease.\n\n";
   message += "Following are the allowed commands -\n\n";
-  message += "hey tinyOwl : to start and then follow the instructions\n\n";
+  message += "hey : to start and then follow the instructions\n\n";
   message += "restart : to start again at any point\n\n";
   message += "logout : to log out from account\n";
   order_states.send_message(received, message);

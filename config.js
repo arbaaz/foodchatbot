@@ -6,6 +6,7 @@ var settings = {
   status_message: 'Hi, am online',
   allow_auto_subscribe: true,
   command_argument_separator: ':',
+  //host: 'http://central-api.tinyowl.com'
   host: 'http://central-api-release.tinyowl.com'
   //host: 'http://localhost:3000'
 }

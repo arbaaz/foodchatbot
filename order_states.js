@@ -51,28 +51,21 @@ function selectLocality(received, data){
             veg_type: parsedBody.dishes[i].veg_type,
             restaurant_id: parsedBody.dishes[i].restaurant_id,
             price: parsedBody.dishes[i].price,
-            restaurant_name: parsedBody.dishes[i].restaurant_name
+            restaurant_name: parsedBody.dishes[i].restaurant_name,
+            image_url: parsedBody.dishes[i].image_url
           }
           dishes.push(dish);
         }
         redisClient.hset(received.conversation_id, 'dishes', dishes);
         if (dishes !== []){
           var message = "What would you like to have?\n";
-          redisClient.hset(received.conversation_id, 'state', 'ORDER');
-          //send_message(received, message);
-          redisClient.hset(received.conversation_id, 'dishes', JSON.stringify(dishes));
+          send_message(received, message);
           for(var i = 0; i < dishes.length; i++){
-            message += (i + ". " + dishes[i].name + "(" + dishes[i].veg_type + ") " + "from " + dishes[i].restaurant_name + " at Rs." + dishes[i].price + "\n\n");
+            message = (i + ". " + dishes[i].name + "(" + dishes[i].veg_type + ") " + "from " + dishes[i].restaurant_name + " at Rs." + dishes[i].price + "\n\n");
+            sendDishMessage(received, dishes, i, message);
           }
-          redisClient.hget('foodbotimage', dishes[i].id, function(err, image_id){
-            if (image_id !== null){
-              send_message(received, message, image_id);
-            }
-            else{
-              setImage(dishes[i].id, dishes[i].image_url);
-              send_message(received, message);
-            }
-          })
+          redisClient.hset(received.conversation_id, 'state', 'ORDER');
+          redisClient.hset(received.conversation_id, 'dishes', JSON.stringify(dishes));
         }
         else{
           var message = "No active dishes in this locality";
@@ -85,6 +78,21 @@ function selectLocality(received, data){
       })
 
   });
+}
+
+function sendDishMessage(received, dishes, index, message){
+  redisClient.hget('foodbotimage', dishes[index].id, function(err, image_id){
+    console.log(index);
+    if (image_id !== null){
+      send_message(received, message, image_id);
+    }
+    else{
+      if (dishes[index].image_url !== "/images/medium/missing.png"){
+        setImage(dishes[index].id, dishes[index].image_url, received);
+      }
+      send_message(received, message, '6224456575060677634');
+    }
+  })
 }
 
 function order(received, data){
