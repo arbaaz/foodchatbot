@@ -1,12 +1,14 @@
 var order_states = require('./order_states.js');
 var redis = require('redis');
 var redisClient = redis.createClient();
+var Client = require('hangupsjs');
 
 function command_executor(request, client) {
   var received = {};
   received.message = request.chat_message.message_content.segment[0].text.toLowerCase();;
   received.conversation_id = request.conversation_id.id;
   received.client = client;
+  received.client.settyping(received.conversation_id, Client.TypingStatus.TYPING);
   if (received.message === 'help' ||
       received.message === '?'    ||
       received.message === 'man'){
@@ -26,6 +28,7 @@ function command_executor(request, client) {
   else{
     order_states.order_action(received);
   }
+  received.client.settyping(received.conversation_id, Client.TypingStatus.STOPPED);
 }
 
 function send_help_information(received) {
