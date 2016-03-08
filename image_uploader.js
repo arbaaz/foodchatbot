@@ -8,11 +8,11 @@ function setImage(dish_id, uri, received){
     // console.log('content-type:', res.headers['content-type']);
     // console.log('content-length:', res.headers['content-length']);
     request(uri).pipe(fs.createWriteStream('images/' + dish_id + ".webp")).on('close', function(){
-      // console.log('Finished image downloading..');
       var image = received.client.uploadimage('images/' + dish_id + ".webp", null, 30000);
       image.then(function(image_id){
-        redisClient.hset('foodbotimage', dish_id, image_id);
-        // redisClient.hgetall('foodbotimage', function(err, data){console.log(data)});
+        if (typeof dish_id !== 'undefined' && typeof image_id !== 'undefined'){
+          redisClient.hset('foodbotimage', dish_id, image_id);
+        }
       });
     });
   });

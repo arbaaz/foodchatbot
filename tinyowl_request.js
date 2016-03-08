@@ -72,16 +72,17 @@ function generate_invoice(place_id, session_token, address_id, dish, quantity){
       delivery_type: "DEFAULT",
       offers_by_tinyowl: 0,
       offers_by_restaurant: 0,
+      delivery_type: 'EXPRESS',
       cart: {
-        amount: parseInt(dish.price)*quantity,
+        amount: parseInt(dish.price)*parseInt(quantity),
         number_of_items: quantity,
-        order_dishes: [
+        order_items: [
           {
-            dish_id: dish.id,
+            item_id: dish.id,
             name: dish.name,
             quantity: quantity,
             base_price: dish.price,
-            total_price: parseInt(dish.price)*quantity
+            total_price: dish.price
           }
         ]
       }

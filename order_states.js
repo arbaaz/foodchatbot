@@ -36,7 +36,15 @@ function order_action(received){
 function selectLocality(received, data){
   redisClient.get('active_localities', function(locality_err, localities){
     // Set selected locality id
-    var place_id = JSON.parse(localities)[parseInt(received.message)].place_id;
+    var locality = JSON.parse(localities)[parseInt(received.message) - 1];
+    if (typeof locality === 'undefined'){
+      send_message(received, "Please select correct locality number");
+      return;
+    }
+    else{
+      send_message(received, "Selected " + locality.name + "\n\n");
+    }
+    var place_id = locality.place_id;
     redisClient.hset(received.conversation_id, 'place_id', place_id);
 
     // Fetch and show Items
@@ -58,31 +66,30 @@ function selectLocality(received, data){
         }
         redisClient.hset(received.conversation_id, 'dishes', dishes);
         if (dishes !== []){
-          var message = "What would you like to have?\n";
+          var message = "Here are the top " + dishes.length + " dishes for you. What would you like to have?\n\n";
+          message += "Please type in format of '<quantity> of <item serial-id>'\n\n";
           send_message(received, message);
           for(var i = 0; i < dishes.length; i++){
-            message = (i + ". " + dishes[i].name + "(" + dishes[i].veg_type + ") " + "from " + dishes[i].restaurant_name + " at Rs." + dishes[i].price + "\n\n");
+            message = ("(" + (i + 1) + ") " + dishes[i].name + "(" + dishes[i].veg_type + ") " + "from " + dishes[i].restaurant_name + " at Rs." + dishes[i].price + "\n\n");
             sendDishMessage(received, dishes, i, message);
           }
           redisClient.hset(received.conversation_id, 'state', 'ORDER');
           redisClient.hset(received.conversation_id, 'dishes', JSON.stringify(dishes));
         }
         else{
-          var message = "No active dishes in this locality";
-          send_message(received, message, dishes[i].image);
+          var message = "Oops! No dishes found in this locality";
+          send_message(received, message);
         }
       })
       .catch(function (err) {
         console.log(err);
         send_message(received, err);
       })
-
   });
 }
 
 function sendDishMessage(received, dishes, index, message){
   redisClient.hget('foodbotimage', dishes[index].id, function(err, image_id){
-    console.log(index);
     if (image_id !== null){
       send_message(received, message, image_id);
     }
@@ -96,48 +103,66 @@ function sendDishMessage(received, dishes, index, message){
 }
 
 function order(received, data){
-  var orderParams = received.message.replace(/ /g,'').split('of');
+  var orderParams = received.message.match(/^[0-9]+of[0-9]+$/g);
+  if (orderParams === null || orderParams.length !== 1){
+    send_message(received, "Please type in correct format - '<quantity> of <item serial-id>'")
+    return;
+  }
+  var orderParams = orderParams[0].split('of');
+  var dish = JSON.parse(data.dishes)[orderParams[1] - 1];
+  if (typeof dish === 'undefined'){
+    send_message(received, "Please select valid item serial id")
+    return;
+  }
   redisClient.hset(received.conversation_id, 'quantity', orderParams[0]);
-  var dish = JSON.parse(data.dishes)[orderParams[1]];
   redisClient.hset(received.conversation_id, 'dish', JSON.stringify(dish));
-  var message = "";
+  var message =  "Added " + orderParams[0] + " of " + dish.name + " to your cart.\n\n";
 
   // Login if not yet done
   // else proceed to address selection
   if (data.user_id === undefined || data.is_verified !== 'true'){
-    message = "Please enter your number";
+    message += "Please enter your 10 digit mobile number without +91 :";
     redisClient.hset(received.conversation_id, 'state', 'LOGIN');
   }
   else {
     // Fetch saved addresses
-    message = addressMessage(received, data);
+    message += addressMessage(received, data);
   }
   send_message(received, message);
 }
 
 function addressMessage(received, data){
-  var message = "Please select the address\n";
+  var message = "Please select the address :\n\n";
   var addresses = JSON.parse(data.addresses);
+  var allowed_addresses = [];
   for(var i = 0; i < addresses.length; i++){
     if (addresses[i].locality_id.toString() === data.locality_id && addresses[i]._DELETED !== true){
-      message += (i + ". " + addresses[i].address_details + "\n");
+      message += ("(" + (i + 1) + ") " + addresses[i].address_details + "\n");
+      allowed_addresses.push(i);
     }
   }
+  redisClient.hset(received.conversation_id, 'allowed_addresses', JSON.stringify(allowed_addresses));
   redisClient.hset(received.conversation_id, 'state', 'CHOOSE_ADDRESS');
   console.log(message);
   return message;
 }
 
 function login(received, data){
+  var number = received.message.match(/^[0-9]{10}$/g);
+  if (number === null){
+    send_message(received, "Wrong format. Please enter your 10 digit mobile number without +91 :");
+    return
+  }
+  number = number[0];
   // Get user id from number
-  tinyowlRequest.login_with_number(received.message)
+  tinyowlRequest.login_with_number(number)
     .then(function(parsedBody){
       response = parsedBody.sms_login;
       if (response.registered){
-        redisClient.hset(received.conversation_id, 'number', received.message);
+        redisClient.hset(received.conversation_id, 'number', number);
         redisClient.hset(received.conversation_id, 'pre_token', response.pre_token);
         redisClient.hset(received.conversation_id, 'state', 'VERIFICATION');
-        var message = "Please enter the otp sent to your phone";
+        var message = "Please enter the otp sent to your mobile number: ";
         send_message(received, message);
       }
       else{
@@ -146,28 +171,50 @@ function login(received, data){
       }
     })
     .catch(function (err) {
+      console.log(err);
       send_message(received, err.error.message);
     });
 }
 
 function verify(received, data){
-  tinyowlRequest.verify_with_otp(data.pre_token, received.message)
+  var otp = received.message.match(/^[0-9]+$/g);
+  if (otp === null){
+    send_message(received, "Wrong format. OTP should be numerical. Try again");
+    return;
+  }
+  tinyowlRequest.verify_with_otp(data.pre_token, otp[0])
     .then(function(parsedBody){
+        var message = "Bravo! Logged in successfully. To logout type 'lo' at any stage.\n\n";
         redisClient.hset(received.conversation_id, 'user_id', parsedBody.profile.id);
         redisClient.hset(received.conversation_id, 'session_token', parsedBody.session_token);
         data.addresses = JSON.stringify(parsedBody.profile.addresses);
         redisClient.hset(received.conversation_id, 'addresses', data.addresses);
         redisClient.hset(received.conversation_id, 'is_verified', 'true');
-        var message = addressMessage(received, data);
+        message += addressMessage(received, data);
         send_message(received, message);
     })
     .catch(function (err) {
+        console.log(err);
         send_message(received, err.error.message);
     })
 }
 
 function chooseAddress(received, data) {
-  var address_id = JSON.parse(data.addresses)[received.message].id;
+  var addressCheck = received.message.match(/^[0-9]+$/g);
+  if (addressCheck === null){
+    send_message(received, "Wrong format. Address serial id should be numerical. Try again");
+    return;
+  }
+  var address = JSON.parse(data.addresses)[parseInt(received.message) - 1];
+  if (typeof address === 'undefined'){
+    send_message(received, "Invalid serial id. Please select correct serial id of address");
+    return;
+  }
+  else if (JSON.parse(data.allowed_addresses).indexOf(parseInt(received.message) - 1) === -1){
+    send_message(received, "Cannot deliver to this address. Please select from the above ones");
+    return;
+  }
+  var address_id = address.id;
   redisClient.hset(received.conversation_id, 'address_id', address_id);
   redisClient.hset(received.conversation_id, 'state', 'CONFIRMATION');
 
@@ -176,16 +223,21 @@ function chooseAddress(received, data) {
     .then(function(parsedBody){
       redisClient.hset(received.conversation_id, 'temp_order_id', parsedBody.payload.order_id);
       redisClient.hset(received.conversation_id, 'total', parsedBody.payload.payable_amount);
-      message = "Your total is Rs " + parsedBody.payload.payable_amount +". Type '1' to place your order";
+      message = "Your total is Rs " + parsedBody.payload.payable_amount + ". Type '1' to place your order or 'r' to start again :";
       send_message(received, message);
     })
     .catch(function (err) {
-        send_message(received, err.error.message);
+      console.log(err);
+      send_message(received, err.error.message);
     })
 }
 
 function confirmOrder(received, data){
   var message = "";
+  message = "Thank you for placing order with TinyOwl.";
+  message += " Your order Id is xyz123";
+  send_message(received, message);
+  return;
   if (received.message === '1'){
     tinyowlRequest.place_order(data.temp_order_id, data.session_token, data.total)
     .then(function(parsedBody){
@@ -196,17 +248,14 @@ function confirmOrder(received, data){
       send_message(received, message);
     })
     .catch(function (err) {
+      console.log(err);
       send_message(received, err.error.message);
     })
   }
   else {
-    message = send_unknown_command_message();
+    message = "Please type '1' or 'r' to restart :";
     send_message(received, message);
   }
-}
-
-function send_unknown_command_message() {
-  return 'Unknown command. Type "man" for more information.';
 }
 
 function send_message(received, message_body, image_id) {
